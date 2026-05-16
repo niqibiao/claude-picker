@@ -20,9 +20,15 @@ A single ~12 KB [AutoHotkey v2](https://www.autohotkey.com/) script.
 
 ## Install
 
+**Double-click `claude-picker.exe`** to start it. The watcher goes into the
+system tray and the picker pops up. If it is already running, double-clicking
+the exe just brings its picker to the front (single-instance, no duplicates).
+
+For autostart and tray-only modes from a terminal:
+
 ```powershell
-.\claude-picker.exe --install    # autostart on login
-.\claude-picker.exe --tray       # start now
+.\claude-picker.exe --install    # autostart on login (tray only, no picker)
+.\claude-picker.exe --tray       # start in tray only, do not show the picker
 ```
 
 To run the script instead of the exe, swap `.\claude-picker.exe` for
@@ -33,7 +39,7 @@ Uninstall with `--uninstall`, then **Quit** from the tray menu.
 ## Usage
 
 - **Left-click** the tray icon — open the picker.
-- **Double-click** / **Enter** — resume the selected session(s).
+- **Double-click a row** / **Enter** — resume the selected session(s).
   `Ctrl`/`Shift`-click to pick several and resume them as a batch.
 - Click a column header to sort. **Per-project recent** caps how many
   recent sessions show per project.
@@ -73,9 +79,15 @@ The exe is unsigned, so Windows SmartScreen warns once on first run —
 
 ## 安装
 
+**双击 `claude-picker.exe`** 即可启动:watcher 进入系统托盘,picker 窗口
+随即弹出。如果实例已在运行,双击 exe 不会再开一个,只把已运行实例的
+picker 调到前台(单实例,不会重复)。
+
+从终端调用更多模式:
+
 ```powershell
-.\claude-picker.exe --install    # 开机自启
-.\claude-picker.exe --tray       # 立即启动
+.\claude-picker.exe --install    # 注册开机自启(以 --tray 模式启动,不弹 picker)
+.\claude-picker.exe --tray       # 仅启动到托盘,不弹 picker
 ```
 
 想直接跑脚本而非 exe,把 `.\claude-picker.exe` 换成
@@ -86,7 +98,7 @@ The exe is unsigned, so Windows SmartScreen warns once on first run —
 ## 用法
 
 - **左键单击**托盘图标 — 打开 picker。
-- **双击** / **回车** — 恢复选中的会话。`Ctrl`/`Shift` 点选多个可批量恢复。
+- **双击一行** / **回车** — 恢复选中的会话。`Ctrl`/`Shift` 点选多个可批量恢复。
 - 点列头排序。**Per-project recent** 设定每个工程显示最近几个会话。
 - **Esc** — 隐藏 picker;watcher 继续后台运行。
 
