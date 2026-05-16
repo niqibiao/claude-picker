@@ -62,10 +62,12 @@ if (argMode = "uninstall") {
     ExitApp()
 }
 
-; ---- single instance: hand off to a running tray instance ----
-existing := WinExist("Claude Code Sessions")
-if (existing) {
-    PostMessage(WM_SHOWPICKER, 0, 0, , existing)
+; ---- single instance: a named mutex is the race-free guard ----
+g_mutex := DllCall("CreateMutexW", "Ptr", 0, "Int", 1, "Str", "ClaudePicker-SingleInstance", "Ptr")
+if (A_LastError = 183) {            ; ERROR_ALREADY_EXISTS -> another instance is running
+    existing := WinExist("Claude Code Sessions")
+    if (existing)
+        PostMessage(WM_SHOWPICKER, 0, 0, , existing)
     ExitApp()
 }
 

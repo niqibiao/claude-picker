@@ -1,0 +1,46 @@
+name: release
+
+# Push a tag like v1.0.1 to compile claude-picker.exe in the cloud and
+# attach it to the matching GitHub Release.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch AutoHotkey v2 + Ahk2Exe
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # the runner's Defender can false-flag the Ahk2Exe package
+          try { Set-MpPreference -DisableRealtimeMonitoring $true } catch {}
+          Invoke-WebRequest 'https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.26/AutoHotkey_2.0.26.zip' -OutFile ahk.zip
+          Expand-Archive ahk.zip -DestinationPath tools\ahk -Force
+          Invoke-WebRequest 'https://github.com/AutoHotkey/Ahk2Exe/releases/download/Ahk2Exe1.1.37.02a2/Ahk2Exe1.1.37.02a2.zip' -OutFile a2e.zip
+          Expand-Archive a2e.zip -DestinationPath tools\a2e -Force
+
+      - name: Compile claude-picker.exe
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $base = (Get-ChildItem tools\ahk -Recurse -Filter AutoHotkey64.exe | Select-Object -First 1).FullName
+          $a2e  = (Get-ChildItem tools\a2e -Recurse -Filter Ahk2Exe.exe       | Select-Object -First 1).FullName
+          if (-not $base) { throw 'AutoHotkey64.exe not found' }
+          if (-not $a2e)  { throw 'Ahk2Exe.exe not found' }
+          & $a2e /in claude-picker.ahk /out claude-picker.exe /base $base
+          if (-not (Test-Path claude-picker.exe)) { throw 'compile produced no exe' }
+          Write-Host ("built claude-picker.exe ({0:N0} bytes)" -f (Get-Item claude-picker.exe).Length)
+
+      - name: Attach exe to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: claude-picker.exe
+          fail_on_unmatched_files: true
