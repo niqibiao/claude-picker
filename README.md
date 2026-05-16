@@ -2,6 +2,8 @@
 
 *English | [中文](#中文)*
 
+![Claude Picker screenshot](docs/screenshot.png)
+
 A Windows system-tray tool that relaunches recently-closed
 [Claude Code](https://claude.com/claude-code) sessions in Windows Terminal.
 
@@ -54,6 +56,8 @@ The exe is unsigned, so Windows SmartScreen warns once on first run —
 ---
 
 # 中文
+
+![Claude Picker 截图](docs/screenshot.png)
 
 一个 Windows 系统托盘小工具,在 Windows Terminal 里重新拉起最近关闭的
 [Claude Code](https://claude.com/claude-code) 会话。
