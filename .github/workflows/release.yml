@@ -35,7 +35,9 @@ jobs:
           $a2e  = (Get-ChildItem tools\a2e -Recurse -Filter Ahk2Exe.exe       | Select-Object -First 1).FullName
           if (-not $base) { throw 'AutoHotkey64.exe not found' }
           if (-not $a2e)  { throw 'Ahk2Exe.exe not found' }
-          & $a2e /in claude-picker.ahk /out claude-picker.exe /base $base
+          # Ahk2Exe is a GUI app; call-operator (&) does not wait — Start-Process -Wait does.
+          Start-Process -FilePath $a2e -Wait -NoNewWindow `
+              -ArgumentList "/in","claude-picker.ahk","/out","claude-picker.exe","/base",$base
           if (-not (Test-Path claude-picker.exe)) { throw 'compile produced no exe' }
           Write-Host ("built claude-picker.exe ({0:N0} bytes)" -f (Get-Item claude-picker.exe).Length)
 
