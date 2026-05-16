@@ -133,14 +133,48 @@ SetupTray() {
     tray := A_TrayMenu
     tray.Delete()
     tray.Add("Open Picker", (*) => ShowPicker())
+    tray.Add("Start on login", ToggleAutostart)
+    tray.Add()                              ; separator
     tray.Add("Quit", (*) => ExitApp())
     tray.Default := "Open Picker"
+    RefreshAutostartCheck()
     OnMessage(0x404, TrayClick)
 }
 
 TrayClick(wParam, lParam, msg, hwnd) {
     if (lParam = 0x202)        ; WM_LBUTTONUP -> single left click
         ShowPicker()
+    else if (lParam = 0x205)   ; WM_RBUTTONUP -> menu about to open
+        RefreshAutostartCheck()
+}
+
+; flip the HKCU\Run autostart entry on/off
+ToggleAutostart(*) {
+    if IsAutostartEnabled() {
+        try RegDelete("HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "ClaudePicker")
+    } else {
+        cmd := A_IsCompiled
+            ? '"' A_ScriptFullPath '" --tray'
+            : '"' A_AhkPath '" "' A_ScriptFullPath '" --tray'
+        try RegWrite(cmd, "REG_SZ", "HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "ClaudePicker")
+    }
+    RefreshAutostartCheck()
+}
+
+IsAutostartEnabled() {
+    try {
+        v := RegRead("HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "ClaudePicker")
+        return v != ""
+    } catch {
+        return false
+    }
+}
+
+RefreshAutostartCheck() {
+    if IsAutostartEnabled()
+        A_TrayMenu.Check("Start on login")
+    else
+        A_TrayMenu.Uncheck("Start on login")
 }
 
 ShowPicker() {
