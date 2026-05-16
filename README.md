@@ -7,9 +7,14 @@
 A Windows system-tray tool that relaunches recently-closed
 [Claude Code](https://claude.com/claude-code) sessions in Windows Terminal.
 
-It watches `claude.exe` processes in the background; the picker lists your
-past sessions and reopens any of them in a new `wt` tab — restoring the
-working directory, session id, and `--dangerously-skip-permissions` flag.
+**The problem it solves.** You usually have several `claude` tabs open
+across projects in one Windows Terminal window. An unexpected restart or
+a stray click on the **X** kills all of them at once, and afterwards you
+have to remember which project lived where and look up each session id
+to resume it. claude-picker keeps that bookkeeping for you: a background
+watcher records every session, and one click reopens any of them — or
+several at once — in fresh `wt` tabs with the original working directory,
+session id, and `--dangerously-skip-permissions` flag restored.
 
 A single ~12 KB [AutoHotkey v2](https://www.autohotkey.com/) script.
 
@@ -62,8 +67,12 @@ The exe is unsigned, so Windows SmartScreen warns once on first run —
 一个 Windows 系统托盘小工具,在 Windows Terminal 里重新拉起最近关闭的
 [Claude Code](https://claude.com/claude-code) 会话。
 
-它在后台监视 `claude.exe` 进程;picker 列出历史会话,可在新的 `wt` 标签页
-重开任意一个——自动恢复工作目录、会话 id 以及 `--dangerously-skip-permissions` 标志。
+**它解决的问题。** 你通常在同一个 Windows Terminal 窗口里跨工程开着好几个
+`claude` 标签。一次意外重启,或者手滑点了 **X**,所有标签一起没了——之后
+你得回忆每个工程开在哪个目录、再翻 session id 才能 resume。
+claude-picker 替你记账:后台 watcher 记录每一个会话,一键即可重开任意一个
+(或一次性多个)——在新的 `wt` 标签页里恢复原始工作目录、会话 id,以及
+`--dangerously-skip-permissions` 标志。
 
 一个约 12 KB 的 [AutoHotkey v2](https://www.autohotkey.com/) 脚本。
 
