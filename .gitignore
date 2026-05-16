@@ -1,0 +1,5 @@
+# Compiled output — do not ship a .exe (see README: Defender false-positives)
+*.exe
+
+# Runtime logs (written under ~/.claude/bin/, not here — guard anyway)
+*.log
