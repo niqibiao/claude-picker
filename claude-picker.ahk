@@ -15,9 +15,10 @@ SetTitleMatchMode(3)
 g_home        := EnvGet("USERPROFILE")
 g_binDir      := g_home "\.claude\bin"
 g_projectsDir := g_home "\.claude\projects"
+g_sessionsDir := g_home "\.claude\sessions"
 g_logFile     := g_binDir "\session-closes.log"
 g_iniFile     := g_binDir "\claude-picker.ini"
-g_tracked     := Map()        ; pid -> Map(firstSeen,cmd,cwd,jsonl)
+g_tracked     := Map()        ; pid -> Map(firstSeen,cmd,cwd,sid,jsonl)
 g_bySid       := Map()        ; SessionId -> row data Map
 g_sortCol     := 2            ; ListView column to sort by (2 = LastModifyTime)
 g_sortDir     := "SortDesc"   ; "Sort" (ascending) or "SortDesc" (descending)
@@ -454,21 +455,20 @@ WatcherTick(*) {
         live := GetLiveClaude()
 
         for pid, cmd in live {
-            if g_tracked.Has(pid) {
-                t := g_tracked[pid]
-                if (t["jsonl"] = "") {
-                    j := FindJsonl(t["cwd"])
-                    if (j != "")
-                        t["jsonl"] := j
-                }
-                continue
+            if !g_tracked.Has(pid) {
+                if RegExMatch(cmd, "i)\s(--version|-v|--help|-h|--update|--print|-p|config|mcp|update|doctor|migrate-installer|setup-token)(\s|$)")
+                    continue
+                g_tracked[pid] := Map("firstSeen", now, "cmd", cmd, "cwd", "", "sid", "", "jsonl", "")
             }
-            if RegExMatch(cmd, "i)\s(--version|-v|--help|-h|--update|--print|-p|config|mcp|update|doctor|migrate-installer|setup-token)(\s|$)")
-                continue
-            cwd := GetCwd(pid)
-            if (cwd = "")
-                continue
-            g_tracked[pid] := Map("firstSeen", now, "cmd", cmd, "cwd", cwd, "jsonl", FindJsonl(cwd))
+            ; re-read the live session id from ~/.claude/sessions/<pid>.json each tick;
+            ; this follows /clear, which swaps the session id within the same process
+            info := ReadSessionInfo(pid)
+            if (info != "") {
+                t := g_tracked[pid]
+                t["cwd"]   := info["cwd"]
+                t["sid"]   := info["sid"]
+                t["jsonl"] := SessionJsonl(info["cwd"], info["sid"])
+            }
         }
 
         gone := []
@@ -477,9 +477,8 @@ WatcherTick(*) {
                 gone.Push(pid)
         for pid in gone {
             t := g_tracked[pid]
-            jsonl := (t["jsonl"] != "") ? t["jsonl"] : FindJsonl(t["cwd"])
-            if (jsonl != "")
-                WriteClose(pid, t["cwd"], jsonl, t["cmd"], DateDiff(now, t["firstSeen"], "Seconds"))
+            if (t["jsonl"] != "")
+                WriteClose(pid, t["cwd"], t["jsonl"], t["cmd"], DateDiff(now, t["firstSeen"], "Seconds"))
             g_tracked.Delete(pid)
         }
     } catch as e {
@@ -500,21 +499,28 @@ GetLiveClaude() {
     return live
 }
 
-FindJsonl(cwd) {
+; read ~/.claude/sessions/<pid>.json -> Map("cwd",..,"sid",..) or "" if unavailable.
+; Claude writes one file per live process; its sessionId follows /clear in real time.
+ReadSessionInfo(pid) {
+    global g_sessionsDir
+    path := g_sessionsDir "\" pid ".json"
+    if !FileExist(path)
+        return ""
+    txt := ""
+    try txt := FileRead(path, "UTF-8")
+    if !RegExMatch(txt, '"sessionId":"([^"]+)"', &ms)
+        return ""
+    if !RegExMatch(txt, '"cwd":"([^"]+)"', &mc)
+        return ""
+    return Map("sid", ms[1], "cwd", StrReplace(mc[1], "\\", "\"))
+}
+
+; map a (cwd, sessionId) pair to its transcript path under ~/.claude/projects
+SessionJsonl(cwd, sid) {
     global g_projectsDir
-    if (cwd = "")
+    if (cwd = "" || sid = "")
         return ""
-    dir := g_projectsDir "\" RegExReplace(cwd, "[\\:/.]", "-")
-    if !DirExist(dir)
-        return ""
-    best := "", bestT := ""
-    Loop Files, dir "\*.jsonl" {
-        if (bestT = "" || A_LoopFileTimeModified > bestT) {
-            bestT := A_LoopFileTimeModified
-            best  := A_LoopFileFullPath
-        }
-    }
-    return best
+    return g_projectsDir "\" RegExReplace(cwd, "[\\:/.]", "-") "\" sid ".jsonl"
 }
 
 WriteClose(pid, cwd, jsonl, cmd, life) {
@@ -525,45 +531,3 @@ WriteClose(pid, cwd, jsonl, cmd, life) {
 }
 
 JEsc(s) => StrReplace(StrReplace(s, "\", "\\"), '"', '\"')
-
-; --- read a process's CWD from its PEB (x64) ---
-GetCwd(pid) {
-    h := DllCall("OpenProcess", "UInt", 0x1010, "Int", 0, "UInt", pid, "Ptr")
-    if !h
-        return ""
-    cwd := ""
-    try {
-        pbi := Buffer(48, 0)
-        st := DllCall("ntdll\NtQueryInformationProcess", "Ptr", h, "Int", 0,
-            "Ptr", pbi, "UInt", 48, "Ptr", 0, "Int")
-        if (st != 0)
-            throw Error("")
-        peb := NumGet(pbi, 8, "Ptr")
-        if !peb
-            throw Error("")
-        ; PEB+0x20 -> ProcessParameters
-        b := Buffer(8, 0)
-        if !DllCall("ReadProcessMemory", "Ptr", h, "Ptr", peb + 0x20,
-            "Ptr", b, "Ptr", 8, "Ptr", 0, "Int")
-            throw Error("")
-        pp := NumGet(b, 0, "Ptr")
-        if !pp
-            throw Error("")
-        ; ProcessParameters+0x38 -> CurrentDirectory.DosPath (UNICODE_STRING)
-        us := Buffer(16, 0)
-        if !DllCall("ReadProcessMemory", "Ptr", h, "Ptr", pp + 0x38,
-            "Ptr", us, "Ptr", 16, "Ptr", 0, "Int")
-            throw Error("")
-        len := NumGet(us, 0, "UShort")
-        bufAddr := NumGet(us, 8, "Ptr")
-        if (len = 0 || len > 32768 || !bufAddr)
-            throw Error("")
-        sb := Buffer(len, 0)
-        if !DllCall("ReadProcessMemory", "Ptr", h, "Ptr", bufAddr,
-            "Ptr", sb, "Ptr", len, "Ptr", 0, "Int")
-            throw Error("")
-        cwd := RTrim(StrGet(sb, len // 2, "UTF-16"), "\")
-    }
-    DllCall("CloseHandle", "Ptr", h)
-    return cwd
-}
